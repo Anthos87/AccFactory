@@ -1,0 +1,72 @@
+project_name: "AccFactory_Ecommerce"
+repo_url: "https://github.com/Anthos87/AccFactory.git"
+
+# --- REGOLE D'ORO (Per non pestarsi i piedi) ---
+global_rules:
+  - "Ogni task deve iniziare con un 'git pull origin main'."
+  - "Backend lavora esclusivamente nella cartella /server."
+  - "Frontend lavora esclusivamente nella cartella /client."
+  - "Nessun merge su 'main' senza il SUCCESS dell'agente QA."
+
+# --- DEFINIZIONE AGENTI E COMPETENZE ---
+agents:
+  - id: architector_agent
+    role: "System Architect"
+    capability: "Progettazione e Inizializzazione"
+    tasks:
+      - "Inizializzare la struttura cartelle: /client, /server, /docs."
+      - "Creare il Task Master su GitHub (Issue) con i Requisiti Funzionali dell'E-commerce." # <--- AGGIUNTO
+      - "Creare sotto-task (Sub-issues) specifici per Backend e Frontend." # <--- AGGIUNTO
+      - "Creare il file api_contract.md (OpenAPI) per allineare FE e BE."
+    next_step: ["backend_agent", "frontend_agent"]
+
+  - id: backend_agent
+    role: "Backend Engineer"
+    capability: "Python/Node.js, Database, API"
+    tasks:
+      - "Sviluppare endpoint in /server basandosi su api_contract.md."
+      - "Creare unit test per ogni endpoint."
+    on_complete: "qa_agent"
+
+  - id: frontend_agent
+    role: "Frontend Engineer"
+    capability: "React/Next.js, Tailwind CSS"
+    tasks:
+      - "Sviluppare interfacce in /client."
+      - "Consumare le API definite dall'Architect."
+    on_complete: "qa_agent"
+
+  - id: qa_agent
+    role: "QA & Testing"
+    capability: "Pytest, Selenium, Integration Testing"
+    tasks:
+      - "Eseguire test asincroni su branch separati."
+      - "In caso di errore, riaprire l'issue e riassegnare al dev competente."
+    on_success: "devops_agent"
+
+  - id: devops_agent
+    role: "Release Manager"
+    capability: "Git, GitHub API, PR Management"
+    tasks:
+      - "Eseguire il push finale."
+      - "Creare la Pull Request su GitHub con log delle modifiche."
+
+# --- FLUSSO DI LAVORO ASINCRONO ---
+workflow_engine:
+  step_1: 
+    action: "architector_agent -> setup_project"
+    trigger: "Initial Command"
+  step_2: 
+    action: "parallel(backend_agent, frontend_agent)"
+    trigger: "api_contract_created"
+  step_3:
+    action: "qa_agent -> verify_all"
+    trigger: "both_devs_completed"
+  step_4:
+    action: "devops_agent -> open_pull_request"
+    trigger: "qa_passed"
+
+# --- CREDENZIALI (Da mappare su Antigravity Secrets) ---
+auth:
+  token: "${{GITHUB_TOKEN}}"
+  user: "Anthos87"
